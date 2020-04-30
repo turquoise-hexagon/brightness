@@ -106,12 +106,12 @@ main(int argc, char **argv)
 
     for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;)
         switch (arg) {
+            case 'a': cur =  (long)max * get_num(optarg) / 100; write = 1; break;
+            case 'r': cur += (long)max * get_num(optarg) / 100; write = 1; break;
             case 'q':
                 printf("%ld\n", cur * 100 / max);
 
                 break;
-            case 'a': cur =  (long)max * get_num(optarg) / 100; write = 1; break;
-            case 'r': cur += (long)max * get_num(optarg) / 100; write = 1; break;
             default:
                 usage(argv[0]);
         }
