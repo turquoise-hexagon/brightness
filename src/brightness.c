@@ -88,52 +88,44 @@ main(int argc, char **argv)
     if (snprintf(cur_path, sizeof cur_path, "%s/brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to current brightness");
 
-    /* get boundaries from max_brightness file */
+    /* get values from brightness files */ 
     FILE *file;
 
     file = open_file(max_path, "r");
     const unsigned max = get_content(max_path, file);
     close_file(max_path, file);
 
+    file = open_file(cur_path, "r");
+    long cur = get_content(cur_path, file);
+    close_file(cur_path, file);
+
     const unsigned min = (long)max * MIN / 100;
 
     /* argument parsing */
-    long new;
-    unsigned cur;
+    bool write = 0;
 
-    for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;) {
-        file = open_file(cur_path, "r");
-        cur = get_content(cur_path, file);
-        close_file(cur_path, file);
-
+    for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;)
         switch (arg) {
             case 'q':
-                printf("%u\n", cur * 100 / max);
-
-                goto jump;
-            case 'a':
-                new = (long)max * get_num(optarg) / 100;
+                printf("%ld\n", cur * 100 / max);
 
                 break;
-            case 'r':
-                new = (long)cur + (long)max * get_num(optarg) / 100;
-
-                break;
+            case 'a': cur =  (long)max * get_num(optarg) / 100; write = 1; break;
+            case 'r': cur += (long)max * get_num(optarg) / 100; write = 1; break;
             default:
                 usage(argv[0]);
         }
 
-        if (new < min) new = min;
-        if (new > max) new = max;
+    if (write == 1) {
+        if (cur < min) cur = min;
+        if (cur > max) cur = max;
 
         file = open_file(cur_path, "w");
 
-        if (fprintf(file, "%ld\n", new) < 0)
+        if (fprintf(file, "%ld\n", cur) < 0)
             errx(EXIT_FAILURE, "failed to write to '%s'", cur_path);
 
         close_file(cur_path, file);
-
-        jump:;
     }
     
     return EXIT_SUCCESS;
