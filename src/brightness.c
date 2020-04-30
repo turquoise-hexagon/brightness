@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 
@@ -87,55 +88,51 @@ main(int argc, char **argv)
     if (snprintf(cur_path, sizeof cur_path, "%s/brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to current brightness");
 
-    /* get values from files */
+    /* get boundaries from max_brightness file */
     FILE *file;
-
-    file = open_file(cur_path, "r");
-    const unsigned cur = get_content(cur_path, file);
-    close_file(cur_path, file);
 
     file = open_file(max_path, "r");
     const unsigned max = get_content(max_path, file);
     close_file(max_path, file);
 
+    const unsigned min = (long)max * MIN / 100;
+
     /* argument parsing */
-    switch (argc) {
-        case 2:
-            if (strncmp(argv[1], "-q", 3) == 0)
-                printf("%u\n", (cur * 100) / max);
-            else
+    long new;
+
+    for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;) {
+        file = open_file(cur_path, "r");
+        const unsigned cur = get_content(cur_path, file);
+        close_file(cur_path, file);
+
+        switch (arg) {
+            case 'q':
+                printf("%u\n", cur * 100 / max);
+
+                goto jump;
+            case 'a':
+                new = (long)max * get_num(optarg) / 100;
+
+                break;
+            case 'r':
+                new = (long)cur + (long)max * get_num(optarg) / 100;
+
+                break;
+            default:
                 usage(argv[0]);
+        }
 
-            break;
-        case 3:;
-            long new;
+        if (new < min) new = min;
+        if (new > max) new = max;
 
-            if (strncmp(argv[1], "-a", 3) == 0) {
-                new = (long)max * get_num(argv[2]) / 100;
-                goto jump;
-            }
-            if (strncmp(argv[1], "-r", 3) == 0) {
-                new = (long)cur + (long)max * get_num(argv[2]) / 100;
-                goto jump;
-            }
+        file = open_file(cur_path, "w");
 
-            usage(argv[0]);
+        if (fprintf(file, "%ld\n", new) < 0)
+            errx(EXIT_FAILURE, "failed to write to '%s'", cur_path);
 
-            jump:;
-            const unsigned min = (long)max * MIN / 100;
+        close_file(cur_path, file);
 
-            if (new < min) new = min;
-            if (new > max) new = max;
-
-            file = open_file(cur_path, "w");
-
-            if (fprintf(file, "%ld\n", new) < 0)
-                errx(EXIT_FAILURE, "failed to write to '%s'", cur_path);
-
-            close_file(cur_path, file);
-
-            break;
-        default: usage(argv[0]);
+        jump:;
     }
     
     return EXIT_SUCCESS;
