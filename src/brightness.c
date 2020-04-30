@@ -99,10 +99,11 @@ main(int argc, char **argv)
 
     /* argument parsing */
     long new;
+    unsigned cur;
 
     for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;) {
         file = open_file(cur_path, "r");
-        const unsigned cur = get_content(cur_path, file);
+        cur = get_content(cur_path, file);
         close_file(cur_path, file);
 
         switch (arg) {
