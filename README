@@ -1,0 +1,20 @@
+brightness
+==========
+    change monitor brightness
+    /!\ requires r/w permissions on the relevant /sys files
+
+usage
+-----
+    * program
+        $ ./make.sh
+        $ bin/brightness
+    * documentation
+        $ cd doc
+        $ ./make.sh
+        $ man ./brightness.1.gz
+
+depends on
+----------
+    * bash
+    * docutils
+    * gcc
