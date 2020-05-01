@@ -88,7 +88,7 @@ main(int argc, char **argv)
     if (snprintf(cur_path, sizeof cur_path, "%s/brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to current brightness");
 
-    /* get values from brightness files */ 
+    /* get values from brightness files */
     FILE *file;
 
     file = open_file(max_path, "r");
@@ -131,6 +131,6 @@ main(int argc, char **argv)
 
         close_file(cur_path, file);
     }
-    
+
     return EXIT_SUCCESS;
 }
