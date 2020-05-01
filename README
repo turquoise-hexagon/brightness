@@ -1,7 +1,7 @@
 brightness
 ==========
     change monitor brightness
-    /!\ requires r/w permissions on the relevant /sys files
+    see udev/90-brightness.rules for r/w permissions on the relevant /sys files
 
 usage
 -----
