@@ -116,7 +116,7 @@ main(int argc, char **argv)
                 usage(argv[0]);
         }
 
-    for (unsigned i = optind; i < (unsigned)argc; ++i)
+    if (optind < argc)
         usage(argv[0]);
 
     if (write == 1) {
