@@ -78,12 +78,12 @@ main(int argc, char **argv)
         usage(argv[0]);
 
     /* build paths */
-    char max_path[256] = {0};
+    char max_path[PATH_MAX] = {0};
 
     if (snprintf(max_path, sizeof(max_path), "%s/max_brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to max brightness");
 
-    char cur_path[256] = {0};
+    char cur_path[PATH_MAX] = {0};
 
     if (snprintf(cur_path, sizeof(cur_path), "%s/brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to current brightness");
