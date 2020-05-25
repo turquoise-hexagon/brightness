@@ -129,14 +129,14 @@ main(int argc, char **argv)
     if (optind < argc) /* handle mismatched parameters */
         usage(argv[0]);
 
+    /* make new value stay between the defined boundaries */
+    if (cur < min) cur = min;
+    if (cur > max) cur = max;
+
     if (query == 1)
         printf("%ld\n", cur * 100 / max);
 
     if (write == 1) {
-        /* make new value stay between the defined boundaries */
-        if (cur < min) cur = min;
-        if (cur > max) cur = max;
-
         /* write new value */
         file = open_file(cur_path, "w");
 
