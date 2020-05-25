@@ -81,12 +81,14 @@ main(int argc, char **argv)
     /* build paths */
     char max_brightness_path[PATH_MAX] = {0};
 
-    if (snprintf(max_brightness_path, sizeof(max_brightness_path), "%s/max_brightness", PATH) < 0)
+    if (snprintf(max_brightness_path, \
+        sizeof(max_brightness_path), "%s/max_brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to max_brightness");
 
     char cur_brightness_path[PATH_MAX] = {0};
 
-    if (snprintf(cur_brightness_path, sizeof(cur_brightness_path), "%s/brightness", PATH) < 0)
+    if (snprintf(cur_brightness_path, \
+        sizeof(cur_brightness_path), "%s/brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to brightness");
 
     /* get values from brightness files */
@@ -109,9 +111,9 @@ main(int argc, char **argv)
     for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;)
         switch (arg) {
             case 'a': write = 1; cur_brightness  = (long)max_brightness * \
-                      convert_to_number(optarg) / 100; break;
+                          convert_to_number(optarg) / 100; break;
             case 'r': write = 1; cur_brightness += (long)max_brightness * \
-                      convert_to_number(optarg) / 100; break;
+                          convert_to_number(optarg) / 100; break;
             case 'q': query = 1; break;
             default :
                 print_usage(argv[0]);
