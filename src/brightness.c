@@ -82,13 +82,13 @@ main(int argc, char **argv)
     char max_brightness_path[PATH_MAX] = {0};
 
     if (snprintf(max_brightness_path, \
-        sizeof(max_brightness_path), "%s/max_brightness", PATH) < 0)
+            sizeof(max_brightness_path), "%s/max_brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to max_brightness");
 
     char cur_brightness_path[PATH_MAX] = {0};
 
     if (snprintf(cur_brightness_path, \
-        sizeof(cur_brightness_path), "%s/brightness", PATH) < 0)
+            sizeof(cur_brightness_path), "%s/brightness", PATH) < 0)
         errx(EXIT_FAILURE, "failed to build path to brightness");
 
     /* get values from brightness files */
