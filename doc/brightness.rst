@@ -24,7 +24,7 @@ options
     set <percentage> as the absolute brightness value
 -r `<percentage>`
     set <percentage> as the relative brightness value
--q
+``-q``
     query the current brightness percentage
 
 example
