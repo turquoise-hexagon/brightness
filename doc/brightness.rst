@@ -12,7 +12,7 @@ change monitor brightness
 
 synopsis
 --------
-brightness `[option]` <parameter>
+brightness [-ar `amount>`] [-q]
 
 description
 -----------
@@ -20,11 +20,11 @@ brightness allows the user to query and modify the current monitor brightness
 
 options
 -------
-``-a <percentage>``
+-a `<percentage>`
     set <percentage> as the absolute brightness value
-``-r <percentage>``
+-r `<percentage>`
     set <percentage> as the relative brightness value
-``-q``
+-q
     query the current brightness percentage
 
 example

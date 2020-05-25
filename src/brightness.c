@@ -11,28 +11,30 @@
 #include "config.h"
 
 static void
-print_usage(char *program_name)
+usage(char *name)
 {
     fprintf(
         stderr,
-        "usage : %s [option] <parameter>\n\n"
+        "usage : %s [-ar <percentage>] [-q]\n\n"
         "options :\n"
-        "    -a <percentage>    set <percentage> as the absolute brightness value\n"
-        "    -r <percentage>    set <percentage> as the relative brightness value\n"
-        "    -q                 query the current brightness percentage\n",
-        basename(program_name)
-    );
+        "    -a <percentage>   set <percentage> as the absolute brightness value\n"
+        "    -r <percentage>   set <percentage> as the relative brightness value\n"
+        "    -q                query the current brightness percentage\n",
+        basename(name));
 
-    exit(EXIT_FAILURE);
+    exit(1);
 }
 
+/*
+ * helper functions
+ */
 static FILE *
 open_file(const char *path, const char *mode)
 {
-    FILE *file = fopen(path, mode);
+    FILE *file;
 
-    if (file == NULL)
-        errx(EXIT_FAILURE, "failed to open '%s'", path);
+    if ((file = fopen(path, mode)) == NULL)
+        errx(1, "failed to open '%s'", path);
 
     return file;
 }
@@ -41,68 +43,75 @@ static void
 close_file(const char *path, FILE *file)
 {
     if (fclose(file) == EOF)
-        errx(EXIT_FAILURE, "failed to close '%s'", path);
+        errx(1, "failed to close '%s'", path);
 }
 
 static long
 convert_to_number(const char *str)
 {
     errno = 0;
-    char *ptr;
 
-    long number = strtol(str, &ptr, 10);
+    char *ptr;
+    long number;
+
+    number = strtol(str, &ptr, 10);
 
     if (errno != 0 || *ptr != 0)
-        errx(EXIT_FAILURE, "'%s' isn't a valid integer", str);
+        errx(1, "'%s' isn't a valid integer", str);
 
     return number;
 }
 
-static unsigned
+static long
 get_number_from_file(const char *path, FILE *file)
 {
-    char str[LINE_MAX] = {0};
+    char line[LINE_MAX] = {0};
 
-    if (fgets(str, LINE_MAX, file) == NULL)
-        errx(EXIT_FAILURE, "failed to get content from '%s'", path);
+    if (fgets(line, LINE_MAX, file) == NULL)
+        errx(1, "failed to get content from '%s'", path);
 
     /* fix string */
-    str[strnlen(str, LINE_MAX) - 1] = 0;
+    line[strnlen(line, LINE_MAX) - 1] = 0;
 
-    return convert_to_number(str);
+    long number;
+
+    if ((number = convert_to_number(line)) < 0)
+        errx(1, "'%s' isn't a valid positive integer", line);
+
+    return number;
 }
 
 int
 main(int argc, char **argv)
 {
     if (argc < 2)
-        print_usage(argv[0]);
+        usage(argv[0]);
 
-    /* build paths */
-    char max_brightness_path[PATH_MAX] = {0};
+    /* build path to relevant files */
+    char max_path[PATH_MAX] = {0};
+    char cur_path[PATH_MAX] = {0};
 
-    if (snprintf(max_brightness_path,
-            sizeof(max_brightness_path), "%s/max_brightness", PATH) < 0)
-        errx(EXIT_FAILURE, "failed to build path to max_brightness");
+    if (snprintf(max_path, sizeof(max_path), "%s/max_brightness", PATH) < 0)
+        errx(1, "failed to build path to max brightness file");
 
-    char cur_brightness_path[PATH_MAX] = {0};
+    if (snprintf(cur_path, sizeof(cur_path), "%s/brightness", PATH) < 0)
+        errx(1, "failed to build path to current brightness file");
 
-    if (snprintf(cur_brightness_path,
-            sizeof(cur_brightness_path), "%s/brightness", PATH) < 0)
-        errx(EXIT_FAILURE, "failed to build path to brightness");
-
-    /* get values from brightness files */
+    /* get values from relevant files */
     FILE *file;
+    long max;
+    long cur;
+    long min;
 
-    file = open_file(max_brightness_path, "r");
-    const unsigned max_brightness = get_number_from_file(max_brightness_path, file);
-    close_file(max_brightness_path, file);
+    file = open_file(max_path, "r");
+    max = get_number_from_file(max_path, file);
+    close_file(max_path, file);
 
-    file = open_file(cur_brightness_path, "r");
-    long cur_brightness = get_number_from_file(cur_brightness_path, file);
-    close_file(cur_brightness_path, file);
+    file = open_file(cur_path, "r");
+    cur = get_number_from_file(cur_path, file);
+    close_file(cur_path, file);
 
-    const unsigned min_brightness = (long)max_brightness * MIN / 100;
+    min = max * (long)MIN / 100;
 
     /* argument parsing */
     bool write = 0;
@@ -110,33 +119,32 @@ main(int argc, char **argv)
 
     for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;)
         switch (arg) {
-            case 'a': write = 1; cur_brightness  = (long)max_brightness *
-                          convert_to_number(optarg) / 100; break;
-            case 'r': write = 1; cur_brightness += (long)max_brightness *
-                          convert_to_number(optarg) / 100; break;
+            case 'a': write = 1; cur  = max * convert_to_number(optarg) / 100; break;
+            case 'r': write = 1; cur += max * convert_to_number(optarg) / 100; break;
             case 'q': query = 1; break;
-            default :
-                print_usage(argv[0]);
+            default:
+                usage(argv[0]);
         }
 
     if (optind < argc) /* handle mismatched parameters */
-        print_usage(argv[0]);
+        usage(argv[0]);
 
     if (query == 1)
-        printf("%ld\n", cur_brightness * 100 / max_brightness);
+        printf("%ld\n", cur * 100 / max);
 
     if (write == 1) {
-        /* make new value stay between defined boundaries */
-        if (cur_brightness < min_brightness) cur_brightness = min_brightness;
-        if (cur_brightness > max_brightness) cur_brightness = max_brightness;
+        /* make new value stay between the defined boundaries */
+        if (cur < min) cur = min;
+        if (cur > max) cur = max;
 
-        file = open_file(cur_brightness_path, "w");
+        /* write new value */
+        file = open_file(cur_path, "w");
 
-        if (fprintf(file, "%ld\n", cur_brightness) < 0)
-            errx(EXIT_FAILURE, "failed to write to '%s'", cur_brightness_path);
+        if (fprintf(file, "%ld\n", cur) < 0)
+            errx(1, "failed to write to '%s'", cur_path);
 
-        close_file(cur_brightness_path, file);
+        close_file(cur_path, file);
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
