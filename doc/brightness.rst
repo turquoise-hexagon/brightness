@@ -25,7 +25,7 @@ options
 ``-r <percentage>``
     set <percentage> as the relative brightness value
 ``-q``
-    output the current brightness percentage
+    query the current brightness percentage
 
 example
 -------
