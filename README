@@ -1,20 +1,18 @@
 brightness
 ==========
     change monitor brightness
-    see etc/90-brightness.rules for r/w permissions on the relevant /sys files
 
 usage
 -----
     * program
-        $ ./make.sh
+        $ make
         $ bin/brightness
     * documentation
-        $ cd doc
-        $ ./make.sh
-        $ man ./brightness.1.gz
+        $ make
+        $ man doc/brightness.1.gz
 
 depends on
 ----------
-    * bash
     * docutils
     * gcc
+    * make
