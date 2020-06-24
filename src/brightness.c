@@ -5,12 +5,13 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "config.h"
 
-static void
+static noreturn void
 usage(char *name)
 {
     fprintf(
