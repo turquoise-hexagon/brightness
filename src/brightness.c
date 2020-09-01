@@ -107,7 +107,7 @@ write_value_to_file(const char *path, float value)
 
         exit(1);
     }
-    
+
     close_file(path, file);
 }
 
