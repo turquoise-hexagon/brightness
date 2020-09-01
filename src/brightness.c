@@ -1,4 +1,3 @@
-#include <err.h>
 #include <errno.h>
 #include <libgen.h>
 #include <limits.h>
@@ -9,33 +8,35 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "config.h"
+static const float MIN = 0.5;
+static const char *PATH = "/sys/class/backlight/intel_backlight";
 
 static noreturn void
 usage(char *name)
 {
     fprintf(
         stderr,
-        "usage : %s [-ar <percentage>] [-q]\n\n"
+        "usage : %s [-ar <percentage>] [-q]\n"
+        "\n"
         "options :\n"
-        "    -a <percentage>   set <percentage> as the absolute brightness value\n"
-        "    -r <percentage>   set <percentage> as the relative brightness value\n"
-        "    -q                query the current brightness percentage\n",
+        "    -a <percentage>    set <percentage> as absolute brightness value\n"
+        "    -r <percentage>    set <percentage> as relative brightness value\n"
+        "    -q                 query the current brightness value\n",
         basename(name));
 
     exit(1);
 }
 
-/*
- * helper functions
- */
 static FILE *
 open_file(const char *path, const char *mode)
 {
     FILE *file;
 
-    if ((file = fopen(path, mode)) == NULL)
-        errx(1, "failed to open '%s'", path);
+    if (! (file = fopen(path, mode))) {
+        fprintf(stderr, "error : failed to open '%s'\n", path);
+
+        exit(1);
+    }
 
     return file;
 }
@@ -43,78 +44,99 @@ open_file(const char *path, const char *mode)
 static void
 close_file(const char *path, FILE *file)
 {
-    if (fclose(file) == EOF)
-        errx(1, "failed to close '%s'", path);
+    if (fclose(file) != 0) {
+        fprintf(stderr, "error : failed to close '%s'\n", path);
+
+        exit(1);
+    }
 }
 
-static long
+static float
 convert_to_number(const char *str)
 {
     errno = 0;
+    float num;
 
-    char *ptr;
-    long number;
+    {
+        char *ptr;
 
-    number = strtol(str, &ptr, 10);
+        num = strtof(str, &ptr);
 
-    if (errno != 0 || *ptr != 0)
-        errx(1, "'%s' isn't a valid integer", str);
+        if (errno != 0 || *ptr != 0) {
+            fprintf(stderr, "error : '%s' isn't a valid brightness value\n", str);
 
-    return number;
+            exit(1);
+        }
+    }
+
+    return num;
 }
 
-static long
-get_number_from_file(const char *path, FILE *file)
+static float
+get_value_from_file(const char *path)
 {
-    char line[LINE_MAX] = {0};
+    FILE *file;
 
-    if (fgets(line, LINE_MAX, file) == NULL)
-        errx(1, "failed to get content from '%s'", path);
+    file = open_file(path, "r");
+
+    char input[LINE_MAX] = {0};
+
+    if (! fgets(input, LINE_MAX, file)) {
+        fprintf(stderr, "error : failed to get value from '%s'\n", path);
+
+        exit(1);
+    }
+
+    close_file(path, file);
 
     /* fix string */
-    line[strnlen(line, LINE_MAX) - 1] = 0;
+    input[strnlen(input, LINE_MAX) - 1] = 0;
 
-    long number;
+    return convert_to_number(input);
+}
 
-    if ((number = convert_to_number(line)) < 0)
-        errx(1, "'%s' isn't a valid positive integer", line);
+static void
+write_value_to_file(const char *path, float value)
+{
+    FILE *file;
 
-    return number;
+    file = open_file(path, "w");
+
+    if (fprintf(file, "%u\n", (unsigned)value) < 0) {
+        fprintf(stderr, "error : failed to write to '%s'\n", path);
+
+        exit(1);
+    }
+    
+    close_file(path, file);
 }
 
 int
 main(int argc, char **argv)
 {
-    if (argc < 2)
-        usage(argv[0]);
-
-    /* build path to relevant files */
     char max_path[PATH_MAX] = {0};
     char cur_path[PATH_MAX] = {0};
 
-    if (snprintf(max_path, sizeof(max_path), "%s/max_brightness", PATH) < 0)
-        errx(1, "failed to build path to max brightness file");
+    if (snprintf(max_path, PATH_MAX, "%s/max_brightness", PATH) < 0) {
+        fprintf(stderr, "error : failed to build path to max brightness file\n");
 
-    if (snprintf(cur_path, sizeof(cur_path), "%s/brightness", PATH) < 0)
-        errx(1, "failed to build path to current brightness file");
+        exit(1);
+    }
 
-    /* get values from relevant files */
-    FILE *file;
-    long max;
-    long cur;
-    long min;
+    if (snprintf(cur_path, PATH_MAX, "%s/brightness", PATH) < 0) {
+        fprintf(stderr, "error : failed to build path to curent brightness file\n");
 
-    file = open_file(max_path, "r");
-    max = get_number_from_file(max_path, file);
-    close_file(max_path, file);
+        exit(1);
+    }
 
-    file = open_file(cur_path, "r");
-    cur = get_number_from_file(cur_path, file);
-    close_file(cur_path, file);
+    float max;
+    float cur;
+    float min;
 
-    min = max * (long)MIN / 100;
+    max = get_value_from_file(max_path);
+    cur = get_value_from_file(cur_path);
+    min = max * MIN / 100;
 
-    /* argument parsing */
     bool write = 0;
     bool query = 0;
 
@@ -123,29 +145,22 @@ main(int argc, char **argv)
             case 'a': write = 1; cur  = max * convert_to_number(optarg) / 100; break;
             case 'r': write = 1; cur += max * convert_to_number(optarg) / 100; break;
             case 'q': query = 1; break;
-            default:
+            default :
                 usage(argv[0]);
         }
 
-    if (optind < argc) /* handle mismatched parameters */
+    if (optind < argc)
         usage(argv[0]);
 
-    /* make new value stay between the defined boundaries */
+    /* keep brightness between min & max values */
     if (cur < min) cur = min;
     if (cur > max) cur = max;
 
     if (query == 1)
-        printf("%ld\n", cur * 100 / max);
+        printf("%u\n", (unsigned)(cur * 100 / max));
 
-    if (write == 1) {
-        /* write new value */
-        file = open_file(cur_path, "w");
-
-        if (fprintf(file, "%ld\n", cur) < 0)
-            errx(1, "failed to write to '%s'", cur_path);
-
-        close_file(cur_path, file);
-    }
+    if (write == 1)
+        write_value_to_file(cur_path, cur);
 
     return 0;
 }

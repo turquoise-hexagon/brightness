@@ -12,7 +12,7 @@ change monitor brightness
 
 synopsis
 --------
-brightness [-ar `amount>`] [-q]
+brightness [-ar `<percentage>`] [-q]
 
 description
 -----------
@@ -25,7 +25,7 @@ options
 -r `<percentage>`
     set <percentage> as the relative brightness value
 ``-q``
-    query the current brightness percentage
+    query the current brightness value
 
 example
 -------
