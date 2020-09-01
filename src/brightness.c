@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static const float MIN = 0.5;
+static const float MIN = 0.75;
 static const char *PATH = "/sys/class/backlight/intel_backlight";
 
 static noreturn void
