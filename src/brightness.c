@@ -1,21 +1,26 @@
 #include <errno.h>
-#include <libgen.h>
 #include <limits.h>
-#include <stdbool.h>
+#include <string.h>
+#include <libgen.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
-#include <string.h>
-#include <unistd.h>
 
-static const float MIN = 0.75;
+static const float  MIN = 0.75;
 static const char *PATH = "/sys/class/backlight/intel_backlight";
+
+#define ERROR(status, ...) {      \
+    fprintf(stderr, __VA_ARGS__); \
+                                  \
+    exit(status);                 \
+}
 
 static noreturn void
 usage(char *name)
 {
-    fprintf(
-        stderr,
+    ERROR(
+        1,
         "usage : %s [-ar <percentage>] [-q]\n"
         "\n"
         "options :\n"
@@ -23,92 +28,62 @@ usage(char *name)
         "    -r <percentage>    set <percentage> as relative brightness value\n"
         "    -q                 query the current brightness value\n",
         basename(name));
-
-    exit(1);
-}
-
-static FILE *
-open_file(const char *path, const char *mode)
-{
-    FILE *file;
-
-    if (! (file = fopen(path, mode))) {
-        fprintf(stderr, "error : failed to open '%s'\n", path);
-
-        exit(1);
-    }
-
-    return file;
-}
-
-static void
-close_file(const char *path, FILE *file)
-{
-    if (fclose(file) != 0) {
-        fprintf(stderr, "error : failed to close '%s'\n", path);
-
-        exit(1);
-    }
 }
 
 static float
-convert_to_number(const char *str)
+_strtof(const char *str)
 {
     errno = 0;
-    float num;
+    float tmp;
 
     {
         char *ptr;
 
-        num = strtof(str, &ptr);
-
-        if (errno != 0 || *ptr != 0) {
-            fprintf(stderr, "error : '%s' isn't a valid brightness value\n", str);
-
-            exit(1);
-        }
+        tmp = strtof(str, &ptr);
+        
+        if (errno != 0 || *ptr != 0)
+            return 0;
     }
 
-    return num;
+    return tmp;
 }
 
-static float
-get_value_from_file(const char *path)
+static int
+get_value_from_file(const char *path, float *dest)
 {
     FILE *file;
 
-    file = open_file(path, "r");
+    if (!(file = fopen(path, "r")))
+        return 0;
 
-    char input[LINE_MAX] = {0};
+    char buffer[LINE_MAX] = {0};
 
-    if (! fgets(input, LINE_MAX, file)) {
-        fprintf(stderr, "error : failed to get value from '%s'\n", path);
-
-        exit(1);
-    }
-
-    close_file(path, file);
+    if (!(fgets(buffer, sizeof(buffer), file)))
+        return 0;
 
     /* fix string */
-    input[strnlen(input, LINE_MAX) - 1] = 0;
+    buffer[strnlen(buffer, sizeof(buffer)) - 1] = 0;
 
-    return convert_to_number(input);
+    *dest = _strtof(buffer);
+
+    return 1;
 }
 
-static void
-write_value_to_file(const char *path, float value)
+static int
+write_value_to_file(const char *path, float source)
 {
     FILE *file;
 
-    file = open_file(path, "w");
+    if (!(file = fopen(path, "w")))
+        return 0;
 
-    if (fprintf(file, "%u\n", (unsigned)value) < 0) {
-        fprintf(stderr, "error : failed to write to '%s'\n", path);
+    if (fprintf(file, "%.0f\n", source) < 0)
+        return 0;
 
-        exit(1);
-    }
+    if (fclose(file))
+        return 0;
 
-    close_file(path, file);
+    return 1;
 }
 
 int
@@ -117,38 +92,62 @@ main(int argc, char **argv)
     char max_path[PATH_MAX] = {0};
     char cur_path[PATH_MAX] = {0};
 
-    if (snprintf(max_path, PATH_MAX, "%s/max_brightness", PATH) < 0) {
-        fprintf(stderr, "error : failed to build path to max brightness file\n");
+    if (snprintf(max_path, sizeof(max_path), "%s/max_brightness", PATH) < 0)
+        ERROR(1, "error : failed to build path to max brightness file\n");
 
-        exit(1);
-    }
-
-    if (snprintf(cur_path, PATH_MAX, "%s/brightness", PATH) < 0) {
-        fprintf(stderr, "error : failed to build path to curent brightness file\n");
-
-        exit(1);
-    }
+    if (snprintf(cur_path, sizeof(cur_path), "%s/brightness",     PATH) < 0)
+        ERROR(1, "error : failed to build path to current brightness file\n");
 
     float max;
     float cur;
     float min;
 
-    max = get_value_from_file(max_path);
-    cur = get_value_from_file(cur_path);
+    if (!(get_value_from_file(max_path, &max)))
+        ERROR(1, "error : failed to get value from '%s'\n", max_path);
+
+    if (!(get_value_from_file(cur_path, &cur)))
+        ERROR(1, "error : failed to get value from '%s'\n", cur_path);
+
     min = max * MIN / 100;
 
-    bool write = 0;
-    bool query = 0;
+    int write = 0;
+    int query = 0;
 
-    for (int arg; (arg = getopt(argc, argv, ":r:a:q")) != -1;)
-        switch (arg) {
-            case 'a': write = 1; cur  = max * convert_to_number(optarg) / 100; break;
-            case 'r': write = 1; cur += max * convert_to_number(optarg) / 100; break;
-            case 'q': query = 1; break;
-            default :
-                usage(argv[0]);
-        }
+    {
+        int arg;
 
+        while ((arg = getopt(argc, argv, ":a:r:q")) != -1)
+            switch (arg) {
+                case 'a':
+                    write = 1;
+                    errno = 0;
+
+                    cur = max * _strtof(optarg) / 100;
+
+                    if (errno != 0)
+                        ERROR(1, "error : '%s' invalid parameter\n", optarg);
+
+                    break;
+                case 'r':
+                    write = 1;
+                    errno = 0;
+
+                    cur += max * _strtof(optarg) / 100;
+
+                    if (errno != 0)
+                        ERROR(1, "error '%s' invalid parameter\n", optarg);
+
+                    break;
+                case 'q':
+                    query = 1;
+
+                    break;
+                default :
+                    usage(argv[0]);
+            }
+    }
+
+    /* handle mismatched parameters */
     if (optind < argc)
         usage(argv[0]);
 
@@ -156,11 +155,12 @@ main(int argc, char **argv)
     if (cur < min) cur = min;
     if (cur > max) cur = max;
 
-    if (query == 1)
-        printf("%u\n", (unsigned)(cur * 100 / max));
+    if (query)
+        printf("%.0f\n", cur * 100 / max);
 
-    if (write == 1)
-        write_value_to_file(cur_path, cur);
+    if (write)
+        if (!(write_value_to_file(cur_path, cur)))
+            ERROR(1, "error : failed to write value to '%s'\n", cur_path);
 
     return 0;
 }
