@@ -58,13 +58,20 @@ get_value_from_file(const char *path, float *dest)
 
     char buffer[LINE_MAX] = {0};
 
-    if (!(fgets(buffer, sizeof(buffer), file)))
+    if (!fgets(buffer, sizeof(buffer), file))
+        return 0;
+
+    if (fclose(file))
         return 0;
 
     /* fix string */
     buffer[strnlen(buffer, sizeof(buffer)) - 1] = 0;
 
+    errno = 0;
     *dest = _strtof(buffer);
+
+    if (errno != 0)
+        return 0;
 
     return 1;
 }
@@ -102,10 +109,10 @@ main(int argc, char **argv)
     float cur;
     float min;
 
-    if (!(get_value_from_file(max_path, &max)))
+    if (!get_value_from_file(max_path, &max))
         ERROR(1, "error : failed to get value from '%s'\n", max_path);
 
-    if (!(get_value_from_file(cur_path, &cur)))
+    if (!get_value_from_file(cur_path, &cur))
         ERROR(1, "error : failed to get value from '%s'\n", cur_path);
 
     min = max * MIN / 100;
