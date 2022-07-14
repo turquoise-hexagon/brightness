@@ -21,11 +21,11 @@ brightness allows the user to query and modify the current monitor brightness
 options
 -------
 -a `<percentage>`
-    set <percentage> as the absolute brightness value
+    change brightness by relative <percentage>
 -r `<percentage>`
-    set <percentage> as the relative brightness value
+    change brightness by absolute <percentage>
 ``-q``
-    query the current brightness value
+    query current brightness percentage
 
 example
 -------

@@ -6,10 +6,10 @@ usage
 -----
     * program
         $ make
-        $ bin/brightness
+        $ ./brightness
     * documentation
         $ make
-        $ man doc/brightness.1.gz
+        $ man brightness.1.gz
 
 depends on
 ----------
